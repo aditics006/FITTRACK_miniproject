@@ -1057,7 +1057,7 @@
 
             // --- AI Chatbot Logic ---
             async function getAiResponse(userInput) {
-                const apiKey = "AIzaSyDJgzuKNsES4e20v6vdyUxYUNy2OpTMUXw"; 
+                const apiKey = "// ADD GOOGLE GEMINI API KEY"; 
                 const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
                 const systemPrompt = `You are FitBot, a friendly and expert fitness and nutrition assistant. The current user's goal is: ${userData.goal}.`;
                 const payload = { systemInstruction: { parts: [{ text: systemPrompt }] }, contents: [{ parts: [{ text: userInput }] }] };
