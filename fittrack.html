@@ -1,0 +1,1137 @@
+<!DOCTYPE html>
+<html lang="en" class="">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FitTrack - Your Personal Fitness Companion</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <script>
+        // Initialize theme based on device preference immediately to prevent flash
+        (function() {
+            if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+                document.documentElement.classList.add('dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+            }
+        })();
+    </script>
+    
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .gradient-text {
+            background: linear-gradient(to right, #4ade80, #3b82f6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .dark .dark\:gradient-text {
+            background: linear-gradient(to right, #4ade80, #60a5fa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        /* Page transition styles */
+        .page-content, .page-modal { transition: opacity 0.3s ease-out, transform 0.3s ease-out; }
+        .page-hidden {
+            opacity: 0; transform: scale(0.98); pointer-events: none; position: absolute; top: 0; left: 0; right: 0; width: 100%;
+        }
+        .page-visible { opacity: 1; transform: scale(1); pointer-events: auto; position: relative; }
+        
+        /* Modal-specific styles */
+        #exercise-detail-page {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 100;
+            background-color: rgba(249, 250, 251, 0.9); backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px); overflow-y: auto; padding: 1rem;
+        }
+        .dark #exercise-detail-page { background-color: rgba(17, 24, 39, 0.9); }
+
+        .chat-bubble { animation: pop-in 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        @keyframes pop-in { 0% { transform: scale(0.8); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+        .thinking-bubble::after {
+            content: '...'; display: inline-block; animation: dots 1.4s infinite; width: 1.2em; text-align: left;
+        }
+        @keyframes dots { 0% { content: '.'; } 33% { content: '..'; } 66% { content: '...'; } }
+        
+        /* Sticky header for tables */
+        .table-container {
+            max-height: 60vh; overflow-y: auto; position: relative; border: 1px solid rgba(0,0,0,0.1); border-radius: 0.5rem;
+        }
+        .dark .table-container { border-color: rgba(255,255,255,0.2); }
+        .table-container thead th {
+            position: sticky; top: 0; z-index: 10; background-color: #e5e7eb;
+        }
+        .dark .table-container thead th { background-color: #374151; }
+        
+        /* Striped table */
+        .striped-table tbody tr:nth-child(even) { background-color: #f9fafb; }
+        .dark .striped-table tbody tr:nth-child(even) { background-color: rgba(55, 65, 81, 0.5); }
+        .striped-table tbody tr:hover { background-color: #f3f4f6; }
+        .dark .striped-table tbody tr:hover { background-color: rgba(75, 85, 99, 0.5); }
+
+        /* Accordion styles */
+        .accordion-content {
+            max-height: 0; overflow: hidden; transition: max-height 0.5s ease-out, padding 0.5s ease-out; padding: 0 1.5rem;
+        }
+        .accordion-content.open { max-height: 1000px; padding: 1.5rem 0; }
+        
+        /* Input validation error style */
+        .input-error { border-color: #ef4444 !important; }
+        .error-message { color: #ef4444; font-size: 0.875rem; margin-top: 0.25rem; display: none; }
+    </style>
+</head>
+<body class="bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-gray-200 transition-colors duration-500">
+
+    <div id="user-details-section" class="page-content page-visible min-h-screen flex items-center justify-center p-4 bg-white dark:bg-gray-800">
+        <div class="max-w-md w-full space-y-8 p-10 bg-gray-100 dark:bg-gray-900 rounded-2xl shadow-2xl">
+            <div>
+                <h2 class="mt-6 text-center text-3xl font-extrabold gradient-text dark:dark:gradient-text">Welcome to FitTrack</h2>
+                <p class="mt-2 text-center text-sm text-gray-600 dark:text-gray-400">Let's get to know you better.</p>
+            </div>
+            <form id="user-details-form" class="mt-8 space-y-6">
+                <div id="form-error-container" class="text-red-500 text-sm text-center hidden">Please check your inputs.</div>
+                <div class="rounded-md shadow-sm space-y-4">
+                    <div><input id="name" name="name" type="text" required class="appearance-none rounded-md relative block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 placeholder-gray-500 dark:placeholder-gray-400 text-gray-900 dark:text-white bg-white dark:bg-gray-800 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm" placeholder="Full Name"></div>
+                    <div><input id="email" name="email" type="email" required class="appearance-none rounded-md relative block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 placeholder-gray-500 dark:placeholder-gray-400 text-gray-900 dark:text-white bg-white dark:bg-gray-800 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm" placeholder="Email address"></div>
+                    <div>
+                        <input id="age" name="age" type="number" required min="12" max="120" class="appearance-none rounded-md relative block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 placeholder-gray-500 dark:placeholder-gray-400 text-gray-900 dark:text-white bg-white dark:bg-gray-800 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm" placeholder="Age (12-120)">
+                        <p class="error-message" id="age-error">Please enter a valid age between 12 and 120.</p>
+                    </div>
+                    <div class="flex space-x-2">
+                        <div class="w-1/2">
+                            <input id="weight" name="weight" type="number" required min="20" max="300" class="appearance-none rounded-md relative block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 placeholder-gray-500 dark:placeholder-gray-400 text-gray-900 dark:text-white bg-white dark:bg-gray-800 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm" placeholder="Weight (kg)">
+                            <p class="error-message" id="weight-error">Weight must be 20-300kg.</p>
+                        </div>
+                        <div class="w-1/2">
+                            <input id="height" name="height" type="number" required min="50" max="300" class="appearance-none rounded-md relative block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 placeholder-gray-500 dark:placeholder-gray-400 text-gray-900 dark:text-white bg-white dark:bg-gray-800 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm" placeholder="Height (cm)">
+                            <p class="error-message" id="height-error">Height must be 50-300cm.</p>
+                        </div>
+                    </div>
+                </div>
+                <div><button type="submit" class="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 dark:focus:ring-offset-gray-900">Next: Choose Your Goal</button></div>
+            </form>
+        </div>
+    </div>
+    
+    <div id="goal-selection-section" class="page-content page-hidden min-h-screen flex items-center justify-center p-4 bg-white dark:bg-gray-800">
+        <div class="max-w-2xl w-full text-center space-y-8 p-10 bg-gray-100 dark:bg-gray-900 rounded-2xl shadow-2xl">
+            <h2 class="text-3xl font-extrabold gradient-text dark:dark:gradient-text">What's Your Primary Goal, <span id="user-name-placeholder"></span>?</h2>
+            
+            <div class="my-6 p-4 bg-white dark:bg-gray-800 rounded-xl shadow-inner">
+                <p class="text-lg text-gray-700 dark:text-gray-300">Your Calculated BMI:</p>
+                <p id="bmi-result" class="text-4xl font-extrabold text-indigo-600 dark:text-indigo-400">0.0</p>
+                <p id="bmi-category" class="text-md text-gray-500 dark:text-gray-400"></p>
+            </div>
+
+            <p class="text-gray-600 dark:text-gray-400">Select a goal to personalize your experience.</p>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4">
+                <button data-goal="loss" class="goal-btn p-6 bg-white dark:bg-gray-800 rounded-xl shadow-lg hover:shadow-2xl hover:-translate-y-2 transform transition duration-300">
+                    <h3 class="text-xl font-bold text-gray-800 dark:text-white">Weight Loss</h3>
+                    <p class="mt-2 text-gray-500 dark:text-gray-400">Burn calories and get leaner.</p>
+                </button>
+                <button data-goal="gain" class="goal-btn p-6 bg-white dark:bg-gray-800 rounded-xl shadow-lg hover:shadow-2xl hover:-translate-y-2 transform transition duration-300">
+                    <h3 class="text-xl font-bold text-gray-800 dark:text-white">Weight Gain</h3>
+                    <p class="mt-2 text-gray-500 dark:text-gray-400">Build muscle and increase mass.</p>
+                </button>
+                <button data-goal="athletic" class="goal-btn p-6 bg-white dark:bg-gray-800 rounded-xl shadow-lg hover:shadow-2xl hover:-translate-y-2 transform transition duration-300">
+                    <h3 class="text-xl font-bold text-gray-800 dark:text-white">Athletic Training</h3>
+                    <p class="mt-2 text-gray-500 dark:text-gray-400">Boost performance and strength.</p>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="main-app" class="page-content page-hidden">
+        <header class="bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm shadow-md sticky top-0 z-40">
+            <nav class="container mx-auto px-6 py-3 flex justify-between items-center">
+                <h1 class="text-2xl font-bold gradient-text dark:dark:gradient-text">FitTrack</h1>
+                <div class="space-x-4">
+                    <button data-page="exercises" class="nav-btn text-gray-600 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 font-semibold">Exercises</button>
+                    <button data-page="diet" class="nav-btn text-gray-600 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 font-semibold">Diet Plan</button>
+                    <button data-page="chatbot" class="nav-btn text-gray-600 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 font-semibold">Fitness Chatbot</button>
+                </div>
+            </nav>
+        </header>
+
+        <div id="main-app-content" class="container mx-auto p-6 relative">
+            
+            <div id="exercises-page" class="page-content page-visible">
+                <div class="max-w-4xl mx-auto mb-12">
+                    <h2 class="text-4xl font-extrabold text-center mb-10 gradient-text dark:dark:gradient-text">Workout Planner</h2>
+                    <div class="p-6 bg-white dark:bg-gray-800 rounded-2xl shadow-xl text-center space-y-6">
+                        <p class="text-gray-600 dark:text-gray-400">Select a duration to generate a workout plan tailored to your goal of <span class="font-bold text-indigo-600 dark:text-indigo-400" id="workout-goal-span"></span>.</p>
+                        <div class="flex justify-center space-x-4">
+                            <select id="workout-duration" class="p-2 rounded-md bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 focus:ring-indigo-500 focus:border-indigo-500">
+                                <option value="daily">Daily Workout</option>
+                                <option value="weekly">Weekly Plan</option>
+                                <option value="monthly">Monthly Cycle</option>
+                            </select>
+                        </div>
+                        <button id="generate-workout-btn" class="py-2 px-6 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg shadow-md transition">Generate Workout Plan</button>
+                        <div id="workout-plan-output" class="text-left mt-8"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="diet-page" class="page-content page-hidden">
+                <h2 class="text-4xl font-extrabold text-center mb-10 gradient-text dark:dark:gradient-text">Personalized Diet Plan</h2>
+                <div class="max-w-6xl mx-auto text-center space-y-6">
+                    <div class="flex flex-wrap justify-center gap-4">
+                        <select id="diet-type" class="p-2 rounded-md bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 focus:ring-indigo-500 focus:border-indigo-500">
+                            <option value="veg">Vegetarian</option>
+                            <option value="nonveg">Non-Vegetarian</option>
+                            <option value="vegan">Vegan</option>
+                        </select>
+                        <select id="diet-duration" class="p-2 rounded-md bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 focus:ring-indigo-500 focus:border-indigo-500">
+                            <option value="weekly">Weekly Plan</option>
+                            <option value="monthly">Monthly Plan</option>
+                        </select>
+                    </div>
+                    <button id="generate-diet-btn" class="py-2 px-6 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg shadow-md transition">Generate Weekly Plan</button>
+                    <div id="diet-plan-output" class="text-left mt-8"></div>
+                </div>
+            </div>
+
+            <div id="chatbot-page" class="page-content page-hidden">
+                <h2 class="text-4xl font-extrabold text-center mb-10 gradient-text dark:dark:gradient-text">Fitness AI Assistant</h2>
+                <div class="max-w-2xl mx-auto bg-white dark:bg-gray-800 rounded-2xl shadow-2xl h-[60vh] flex flex-col">
+                    <div id="chat-window" class="flex-1 p-6 overflow-y-auto space-y-4"></div>
+                    <div class="p-4 border-t border-gray-200 dark:border-gray-700">
+                        <form id="chat-form" class="flex space-x-2">
+                            <input id="chat-input" type="text" placeholder="Ask about push-ups, diet, protein..." class="flex-1 p-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-100 dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                            <button type="submit" class="p-2 px-4 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition">Send</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <footer class="text-center py-10 border-t dark:border-gray-800 mt-12">
+            <h3 class="font-bold text-lg text-gray-600 dark:text-gray-400">Fitness Fact of the Day</h3>
+            <p id="fitness-fact" class="mt-2 text-gray-500 dark:text-gray-500 max-w-2xl mx-auto"></p>
+        </footer>
+    </div>
+
+    <div id="exercise-detail-page" class="page-modal page-hidden">
+        <div class="max-w-2xl mx-auto my-12 bg-white dark:bg-gray-800 rounded-2xl shadow-2xl overflow-hidden">
+            <div class="p-6">
+                <button id="back-to-workout-btn" class="mb-4 inline-flex items-center text-indigo-600 dark:text-indigo-400 hover:underline">
+                    <svg class="w-5 h-5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg>
+                    Back to Workout Plan
+                </button>
+                <h2 id="ex-detail-name" class="text-3xl font-extrabold mb-4 gradient-text dark:dark:gradient-text">Exercise Name</h2>
+                <img id="ex-detail-image" src="" alt="Exercise Image" class="rounded-lg mb-6 w-full h-64 object-cover shadow-md">
+                <p id="ex-detail-desc" class="text-gray-600 dark:text-gray-400 mb-4"></p>
+                <div id="ex-detail-tip-box" class="p-4 bg-indigo-100 dark:bg-indigo-900/50 rounded-lg mb-6">
+                    <h4 class="font-bold text-indigo-800 dark:text-indigo-300">Tip for Your Goal:</h4>
+                    <p id="ex-detail-tip" class="text-indigo-700 dark:text-indigo-400"></p>
+                </div>
+                <a id="ex-detail-wiki" href="#" target="_blank" rel="noopener noreferrer" class="inline-block py-2 px-4 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg shadow-md transition">Know More on Wikipedia</a>
+            </div>
+        </div>
+    </div>
+
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- Automatic System Theme Listener ---
+            // Listen for changes in the OS theme preference and update immediately
+            window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', event => {
+                if (event.matches) {
+                    document.documentElement.classList.add('dark');
+                } else {
+                    document.documentElement.classList.remove('dark');
+                }
+            });
+
+            const userData = { name: '', email: '', age: 0, weight: 0, height: 0, goal: '' };
+            
+            // --- Page Navigation ---
+            const navButtons = document.querySelectorAll('.nav-btn');
+            const mainAppPages = document.querySelectorAll('#main-app-content .page-content');
+            const allPages = document.querySelectorAll('.page-content, .page-modal');
+            
+            function showPage(pageId) {
+                if (['user-details-section', 'goal-selection-section', 'main-app'].includes(pageId)) {
+                    localStorage.setItem('fitTrackView', pageId);
+                }
+                allPages.forEach(page => {
+                    if (page.id === pageId) {
+                        page.classList.remove('page-hidden'); page.classList.add('page-visible');
+                        if (page.classList.contains('page-modal')) document.body.style.overflow = 'hidden'; 
+                    } else {
+                        page.classList.add('page-hidden'); page.classList.remove('page-visible');
+                        if (page.id === 'exercise-detail-page') document.body.style.overflow = 'auto';
+                    }
+                });
+            }
+            
+            function showMainAppPage(pageId) {
+                localStorage.setItem('fitTrackMainPage', pageId);
+                mainAppPages.forEach(page => {
+                    if (page.id === pageId) {
+                       page.classList.remove('page-hidden'); page.classList.add('page-visible');
+                    } else {
+                       page.classList.add('page-hidden'); page.classList.remove('page-visible');
+                    }
+                });
+            }
+
+            navButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    const pageId = button.dataset.page + '-page';
+                    showPage('main-app'); showMainAppPage(pageId);
+                });
+            });
+
+            // --- Persistence ---
+            function saveUserData() { localStorage.setItem('fitTrackUserData', JSON.stringify(userData)); }
+            
+            function loadUserData() {
+                const savedData = localStorage.getItem('fitTrackUserData');
+                if (savedData) {
+                    Object.assign(userData, JSON.parse(savedData));
+                    document.getElementById('name').value = userData.name || '';
+                    document.getElementById('email').value = userData.email || '';
+                    document.getElementById('age').value = userData.age || '';
+                    document.getElementById('weight').value = userData.weight || '';
+                    document.getElementById('height').value = userData.height || '';
+                }
+            }
+            
+            function calculateAndDisplayBMI(weight, height) {
+                 if (height > 0 && weight > 0) {
+                    const heightInMeters = height / 100;
+                    const bmi = weight / (heightInMeters * heightInMeters);
+                    const bmiResultEl = document.getElementById('bmi-result');
+                    const bmiCategoryEl = document.getElementById('bmi-category');
+                    bmiResultEl.textContent = bmi.toFixed(1);
+
+                    let category = '';
+                    if (bmi < 18.5) { category = "Underweight"; bmiResultEl.className = "text-4xl font-extrabold text-blue-500 dark:text-blue-400"; } 
+                    else if (bmi < 25) { category = "Normal weight"; bmiResultEl.className = "text-4xl font-extrabold text-green-500 dark:text-green-400"; } 
+                    else if (bmi < 30) { category = "Overweight"; bmiResultEl.className = "text-4xl font-extrabold text-yellow-500 dark:text-yellow-400"; } 
+                    else { category = "Obesity"; bmiResultEl.className = "text-4xl font-extrabold text-red-500 dark:text-red-400"; }
+                    bmiCategoryEl.textContent = category;
+                }
+            }
+
+            // --- Initial Forms Logic ---
+            const userDetailsForm = document.getElementById('user-details-form');
+            
+            userDetailsForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const ageVal = parseInt(document.getElementById('age').value);
+                const weightVal = parseFloat(document.getElementById('weight').value);
+                const heightVal = parseFloat(document.getElementById('height').value);
+                const nameVal = document.getElementById('name').value;
+                const emailVal = document.getElementById('email').value;
+
+                let isValid = true;
+                const ageError = document.getElementById('age-error');
+                const weightError = document.getElementById('weight-error');
+                const heightError = document.getElementById('height-error');
+                const formError = document.getElementById('form-error-container');
+
+                [ageError, weightError, heightError, formError].forEach(el => el.style.display = 'none');
+                document.querySelectorAll('input').forEach(el => el.classList.remove('input-error'));
+
+                if (isNaN(ageVal) || ageVal < 12 || ageVal > 120) { isValid = false; ageError.style.display = 'block'; document.getElementById('age').classList.add('input-error'); }
+                if (isNaN(weightVal) || weightVal < 20 || weightVal > 300) { isValid = false; weightError.style.display = 'block'; document.getElementById('weight').classList.add('input-error'); }
+                if (isNaN(heightVal) || heightVal < 50 || heightVal > 300) { isValid = false; heightError.style.display = 'block'; document.getElementById('height').classList.add('input-error'); }
+
+                if (!isValid) { formError.style.display = 'block'; return; }
+
+                userData.name = nameVal; userData.email = emailVal; userData.age = ageVal;
+                userData.weight = weightVal; userData.height = heightVal;
+                
+                saveUserData();
+                document.getElementById('user-name-placeholder').textContent = userData.name;
+                calculateAndDisplayBMI(userData.weight, userData.height);
+                showPage('goal-selection-section');
+            });
+
+            const goalButtons = document.querySelectorAll('.goal-btn');
+            goalButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    userData.goal = button.dataset.goal;
+                    saveUserData();
+                    localStorage.setItem('fitTrackView', 'main');
+                    localStorage.setItem('fitTrackMainPage', 'exercises-page');
+                    showPage('main-app');
+                    initializeApp();
+                });
+            });
+
+            // --- Main App Initialization ---
+            function initializeApp() {
+                const goalSpan = document.getElementById('workout-goal-span');
+                let goalText = userData.goal.charAt(0).toUpperCase() + userData.goal.slice(1);
+                if (userData.goal === 'loss') goalText = "Weight Loss";
+                if (userData.goal === 'gain') goalText = "Weight Gain";
+                if (userData.goal === 'athletic') goalText = "Athletic Training";
+                goalSpan.textContent = goalText;
+
+                setupWorkoutGenerator();
+                setupDietGenerator();
+                setupChatbot();
+                displayRandomFact();
+            }
+
+            // --- Exercise Database ---
+            const exerciseDatabase = {
+                'Push-ups': {
+                    description: 'A classic bodyweight exercise that strengthens the chest, shoulders, and triceps. Keep your body in a straight line from head to heels.',
+                    image: 'https://content.artofmanliness.com/uploads/2020/11/Pushup-Re-do-1.jpg?q=80&w=800&auto=format&fit=crop',
+                    wiki: 'https://en.wikipedia.org/wiki/Push-up',
+                    tips: { loss: 'Focus on higher reps (15-20) to maximize calorie burn.', gain: 'Try variations like decline push-ups or add a weight plate on your back for more resistance.', athletic: 'Incorporate explosive push-ups or clap push-ups to build power.' }
+                },
+                'Squats': {
+                    description: 'The king of leg exercises, targeting quads, hamstrings, and glutes. Keep your chest up and back straight, squatting as if sitting in a chair.',
+                    image: 'https://healthhouseclinics.com.au/wp-content/uploads/2018/11/squat.jpg?',
+                    wiki: 'https://en.wikipedia.org/wiki/Squat_(exercise)',
+                    tips: { loss: 'Perform bodyweight squats for high reps or try jump squats for a cardio boost.', gain: 'Use a barbell or dumbbells to progressively add weight and build muscle.', athletic: 'Focus on deep, full-range-of-motion squats to improve mobility and strength.' }
+                },
+                'Pull-ups': {
+                    description: 'An excellent upper-body exercise for building back and bicep strength. Start from a dead hang and pull your chin over the bar.',
+                    image: 'https://tse4.mm.bing.net/th/id/OIP.Z4F9N6Z5Y402MT9Cv7ETywHaEK?',
+                    wiki: 'https://en.wikipedia.org/wiki/Pull-up_(exercise)',
+                    tips: { loss: 'Use an assisted pull-up machine or resistance bands to help you complete more reps.', gain: 'Add weight using a dip belt once you can do 10-12 bodyweight pull-ups.', athletic: 'Practice different grips (wide, narrow, neutral) to target different muscle groups.' }
+                },
+                'Plank': {
+                    description: 'A core-strengthening isometric exercise. Hold a push-up position, resting on your forearms, and keep your core tight and back flat.',
+                    image: 'https://th.bing.com/th/id/OIP.b1uf0Y_E3XTXYjAdbZMNNAHaHZ?',
+                    wiki: 'https://en.wikipedia.org/wiki/Plank_(exercise)',
+                    tips: { loss: 'Hold for as long as possible. Try variations like side planks to engage more muscles.', gain: 'Add a weight plate to your back to increase the difficulty and stimulate core muscles.', athletic: 'Incorporate plank variations with limb movement, like plank-to-push-up, to improve stability.' }
+                },
+                'Jumping Jacks': {
+                    description: 'A full-body cardiovascular exercise. Start standing, then jump to a position with the legs spread wide and the hands touching overhead, returning to the start.',
+                    image: 'https://www.wikihow.com/images/thumb/9/94/Perform-Jumping-Jacks-Step-4-Version-4.jpg/aid1496432-v4-728px-Perform-Jumping-Jacks-Step-4-Version-4.jpg?',
+                    wiki: 'https://en.wikipedia.org/wiki/Jumping_jack',
+                    tips: { loss: 'Perform for timed intervals (e.g., 60 seconds) to keep your heart rate high.', gain: 'Use as a warm-up, not a primary muscle-building exercise.', athletic: 'Focus on speed and coordination as part of an agility drill.' }
+                },
+                'Burpees': {
+                    description: 'A full-body compound exercise combining a squat, push-up, and jump. Excellent for building conditioning and explosive power.',
+                    image: 'https://th.bing.com/th/id/OIP.oNcBiu6nFKvSUcjh4plOIQHaEK?',
+                    wiki: 'https://en.wikipedia.org/wiki/Burpee_(exercise)',
+                    tips: { loss: 'The ultimate HIIT exercise. Aim for as many reps as possible in a set time.', gain: 'Not ideal for mass gain, but can be used for conditioning.', athletic: 'Focus on the explosive jump at the end to build full-body power.' }
+                },
+                'Lunges': {
+                    description: 'A unilateral leg exercise that targets the quads, glutes, and hamstrings. Step forward with one leg and lower your hips until both knees are bent at a 90-degree angle.',
+                    image: 'https://images.healthshots.com/healthshots/en/uploads/2024/05/02174153/Lunges.jpg?',
+                    wiki: 'https://en.wikipedia.org/wiki/Lunge_(exercise)',
+                    tips: { loss: 'Try walking lunges for a continuous, calorie-burning movement.', gain: 'Hold heavy dumbbells or a barbell to progressively overload your legs.', athletic: 'Incorporate reverse or lateral lunges to build stability and multi-directional strength.' }
+                },
+                'Overhead Press': {
+                    description: 'A compound shoulder exercise. Press a barbell or dumbbells from your front shoulders to a locked-out position overhead. Keep your core tight.',
+                    image: 'https://th.bing.com/th/id/OIP.tbKIuM-EUaBRlvG8p3eZsQHaFb?',
+                    wiki: 'https://en.wikipedia.org/wiki/Overhead_press',
+                    tips: { loss: 'Use lighter weight for higher reps (12-15) to build shoulder endurance.', gain: 'This is a key lift for building big shoulders. Focus on lifting heavy in the 5-8 rep range.', athletic: 'The push press, an explosive variation, is excellent for developing overhead power.' }
+                },
+                'Deadlift': {
+                    description: 'A full-body compound lift that primarily targets the posterior chain (hamstrings, glutes, back). Lift a barbell from the floor to a standing position, keeping your back straight.',
+                    image: 'https://th.bing.com/th/id/OIP.fJ7wh7a5z-DSl_cQzuPGvwHaEo?',
+                    wiki: 'https://en.wikipedia.org/wiki/Deadlift',
+                    tips: { loss: 'Use a moderate weight for 8-10 reps. It burns a massive amount of calories.', gain: 'The ultimate mass-builder. Focus on progressively heavier sets in the 1-5 rep range.', athletic: 'Builds raw, functional strength and power. Essential for most athletes.' }
+                },
+                'Box Jumps': {
+                    description: 'A plyometric exercise to build explosive power. Jump from the floor onto a raised platform or box, landing softly.',
+                    image: 'https://th.bing.com/th/id/OIP.vRhb_cmtHumTR-M5VGYJQgHaEG?',
+                    wiki: 'https://en.wikipedia.org/wiki/Plyometrics',
+                    tips: { loss: 'Can be part of a HIIT circuit, but be careful with form as you fatigue.', gain: 'Not a primary mass builder, but great for athletic power.', athletic: 'This is a foundational exercise for improving your vertical jump and explosiveness.' }
+                },
+                'Kettlebell Swings': {
+                    description: 'A dynamic, explosive exercise that builds power in the hips, glutes, and hamstrings, while also being a great cardiovascular workout.',
+                    image: 'https://th.bing.com/th/id/OIP.MdC5VoSRtb4w1WOPJAs6IwHaEK?',
+                    wiki: 'https://en.wikipedia.org/wiki/Kettlebell',
+                    tips: { loss: 'Excellent for high-intensity, calorie-burning finishers. Aim for high reps (20-30).', gain: 'Use heavy kettlebells for 8-12 reps to build explosive hip and glute strength.', athletic: 'Directly builds hip-hinge power, which is crucial for running, jumping, and tackling.' }
+                },
+                'Jogging': {
+                    description: 'A form of steady-state cardiovascular exercise. Run at a moderate, consistent pace for an extended period.',
+                    image: 'https://th.bing.com/th/id/OIP.rlz7Zlkz5lsRtlqIrcmS-AHaE8?',
+                    wiki: 'https://en.wikipedia.org/wiki/Jogging',
+                    tips: { loss: 'This is your go-to Low-Intensity Steady State (LISS) cardio. Aim for 30-45 minutes.', gain: 'Keep it minimal. Too much cardio can interfere with muscle gain. Use it as a warm-up.', athletic: 'Builds your aerobic base, which is essential for endurance in any sport.' }
+                }
+            };
+
+            // --- Dynamic Workout Planner ---
+            const workoutExercisePools = {
+                loss: {
+                    hiit: ['Burpees', 'Jumping Jacks', 'Squats', 'Lunges', 'Plank', 'Push-ups'],
+                    strength: ['Squats', 'Lunges', 'Push-ups', 'Deadlift', 'Kettlebell Swings'],
+                    cardio: ['Jogging', 'Jumping Jacks']
+                },
+                gain: {
+                    push: ['Push-ups', 'Overhead Press', 'Lunges'],
+                    pull: ['Pull-ups', 'Deadlift', 'Kettlebell Swings'],
+                    legs: ['Squats', 'Deadlift', 'Lunges']
+                },
+                athletic: {
+                    power: ['Box Jumps', 'Kettlebell Swings', 'Burpees', 'Squats', 'Deadlift'],
+                    strength: ['Deadlift', 'Squats', 'Overhead Press', 'Pull-ups'],
+                    conditioning: ['Jogging', 'Jumping Jacks', 'Burpees']
+                }
+            };
+            
+            function getExercisesFromPool(pool, num) {
+                const shuffled = [...pool].sort(() => 0.5 - Math.random());
+                return shuffled.slice(0, num);
+            }
+
+            const dynamicWorkoutGenerator = {
+                generateDaily: (goal) => {
+                    let title, schedule, tip;
+                    switch(goal) {
+                        case 'loss':
+                            title = "Daily High-Intensity Interval Training (HIIT)";
+                            tip = "Focus on maximum effort during the work intervals to boost calorie burn.";
+                            schedule = getExercisesFromPool(workoutExercisePools.loss.hiit, 4).map(ex => ({ exercise: ex, duration: "45 seconds work", sets: 4, rest: "20 seconds rest" }));
+                            schedule.push({ exercise: 'Plank', duration: '60 sec hold', sets: 3, rest: '30 sec rest'});
+                            break;
+                        case 'gain':
+                            title = "Daily Hypertrophy (Push Focus)";
+                            tip = "Focus on controlled movements and feeling the muscle work (mind-muscle connection).";
+                            schedule = getExercisesFromPool(workoutExercisePools.gain.push, 3).map(ex => ({ exercise: ex, duration: "8-12 reps", sets: 4, rest: "90 seconds" }));
+                            break;
+                        case 'athletic':
+                            title = "Daily Power & Agility Workout";
+                            tip = "Focus on maximum speed and explosive power in every repetition.";
+                            schedule = getExercisesFromPool(workoutExercisePools.athletic.power, 4).map(ex => ({ exercise: ex, duration: "5 reps (explosive)", sets: 5, rest: "60-90 seconds" }));
+                            break;
+                    }
+                    return { title, schedule, tip };
+                },
+                generateWeekly: (goal) => {
+                    let title, schedule, tip;
+                    switch(goal) {
+                        case 'loss':
+                            title = "Weekly Fat-Loss Plan"; tip = "Consistency is key. Combine this with the diet plan for best results.";
+                            schedule = [
+                                { day: "Monday", focus: "Full Body HIIT", exercises: getExercisesFromPool(workoutExercisePools.loss.hiit, 3).join(', ') },
+                                { day: "Tuesday", focus: "Cardio (LISS)", exercises: getExercisesFromPool(workoutExercisePools.loss.cardio, 1).join(', ') + " (30-45 min)" },
+                                { day: "Wednesday", focus: "Full Body Strength", exercises: getExercisesFromPool(workoutExercisePools.loss.strength, 3).join(', ') },
+                                { day: "Thursday", focus: "Cardio (LISS)", exercises: getExercisesFromPool(workoutExercisePools.loss.cardio, 1).join(', ') + " (30-45 min)" },
+                                { day: "Friday", focus: "Full Body HIIT", exercises: getExercisesFromPool(workoutExercisePools.loss.hiit, 3).join(', ') },
+                                { day: "Saturday", focus: "Active Recovery", exercises: "Light walk or stretching" },
+                                { day: "Sunday", focus: "Rest", exercises: "Rest and recover" }
+                            ];
+                            break;
+                        case 'gain':
+                            title = "Weekly Muscle Gain Split (PPL)"; tip = "Progressive overload is essential. Try to add a small amount of weight or one more rep each week.";
+                            schedule = [
+                                { day: "Monday", focus: "Push (Chest, Shoulders, Triceps)", exercises: getExercisesFromPool(workoutExercisePools.gain.push, 3).join(', ') },
+                                { day: "Tuesday", focus: "Pull (Back, Biceps)", exercises: getExercisesFromPool(workoutExercisePools.gain.pull, 3).join(', ') },
+                                { day: "Wednesday", focus: "Legs (Quads, Hamstrings, Calves)", exercises: getExercisesFromPool(workoutExercisePools.gain.legs, 3).join(', ') },
+                                { day: "Thursday", focus: "Push", exercises: getExercisesFromPool(workoutExercisePools.gain.push, 3).join(', ') },
+                                { day: "Friday", focus: "Pull", exercises: getExercisesFromPool(workoutExercisePools.gain.pull, 3).join(', ') },
+                                { day: "Saturday", focus: "Legs", exercises: getExercisesFromPool(workoutExercisePools.gain.legs, 3).join(', ') },
+                                { day: "Sunday", focus: "Rest", exercises: "Eat, sleep, recover." }
+                            ];
+                            break;
+                        case 'athletic':
+                            title = "Weekly Athletic Performance Plan"; tip = "Performance is built on strength, power, and rest. Don't skip your recovery days.";
+                            schedule = [
+                                { day: "Monday", focus: "Max Strength (Lower)", exercises: getExercisesFromPool(workoutExercisePools.athletic.strength, 2).join(', ') },
+                                { day: "Tuesday", focus: "Power & Speed", exercises: getExercisesFromPool(workoutExercisePools.athletic.power, 3).join(', ') },
+                                { day: "Wednesday", focus: "Active Recovery", exercises: "Foam rolling, light stretching" },
+                                { day: "Thursday", focus: "Max Strength (Upper)", exercises: getExercisesFromPool(workoutExercisePools.athletic.strength, 2).join(', ') },
+                                { day: "Friday", focus: "Agility & Core", exercises: getExercisesFromPool(workoutExercisePools.athletic.power, 2).join(', ') + ", Plank" },
+                                { day: "Saturday", focus: "Conditioning", exercises: getExercisesFromPool(workoutExercisePools.athletic.conditioning, 2).join(', ') },
+                                { day: "Sunday", focus: "Rest", exercises: "Rest and visualization." }
+                            ];
+                            break;
+                    }
+                    return { title, schedule, tip };
+                },
+                generateMonthly: (goal) => {
+                    const weeklyPlan = dynamicWorkoutGenerator.generateWeekly(goal);
+                    let title = `Monthly Cycle (${weeklyPlan.title})`;
+                    let tip = `This is a 4-week cycle. For Week 3, try to increase weight or reps. For Week 4, consider a 'deload' (reduce volume) to recover before the next cycle. ${weeklyPlan.tip}`;
+                    let schedule = [];
+                    for (let w = 1; w <= 4; w++) {
+                        let weekSchedule = dynamicWorkoutGenerator.generateWeekly(goal).schedule.map(day => ({
+                            ...day,
+                            exercises: day.focus === 'Rest' || day.focus === 'Active Recovery' ? day.exercises : 
+                                     getExercisesFromPool(workoutExercisePools[goal][day.focus.split(' ')[0].toLowerCase()] || workoutExercisePools[goal][Object.keys(workoutExercisePools[goal])[0]], 3).join(', ')
+                        }));
+                        schedule.push({ week: w, schedule: weekSchedule });
+                    }
+                    return { title, schedule, tip };
+                },
+                getPlanHtml: (planType, goal) => {
+                    let plan, html;
+                    if (planType === 'daily') {
+                        plan = dynamicWorkoutGenerator.generateDaily(goal);
+                        html = `<h3 class="text-3xl font-extrabold text-center my-4">${plan.title}</h3>` + dynamicWorkoutGenerator.buildDailyTable(plan.schedule);
+                    } else if (planType === 'weekly') {
+                        plan = dynamicWorkoutGenerator.generateWeekly(goal);
+                        html = `<h3 class="text-3xl font-extrabold text-center my-4">${plan.title}</h3>` + dynamicWorkoutGenerator.buildWeeklyTable(plan.schedule);
+                    } else if (planType === 'monthly') {
+                        plan = dynamicWorkoutGenerator.generateMonthly(goal);
+                        html = `<h3 class="text-3xl font-extrabold text-center my-4">${plan.title}</h3>` + dynamicWorkoutGenerator.buildMonthlyAccordion(plan.schedule);
+                    }
+                    html += `<div class="p-4 mt-6 bg-green-100 dark:bg-green-900/50 rounded-lg shadow-inner text-green-800 dark:text-green-300"><h4 class="font-bold text-lg">Pro Tip:</h4><p>${plan.tip}</p></div>`;
+                    return html;
+                },
+                buildDailyTable: (schedule) => {
+                    let table = `<div class="overflow-x-auto table-container shadow-lg rounded-lg border dark:border-gray-700"><table class="w-full min-w-max striped-table"><thead class="sticky top-0 z-10"><tr class="bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 uppercase text-sm leading-normal"><th class="py-3 px-6 text-left">Exercise</th><th class="py-3 px-6 text-left">Duration / Reps</th><th class="py-3 px-6 text-left">Sets</th><th class="py-3 px-6 text-left">Rest</th></tr></thead><tbody class="text-gray-600 dark:text-gray-200 text-sm font-light">`;
+                    schedule.forEach(item => {
+                        table += `<tr class="border-b border-gray-200 dark:border-gray-700"><td class="py-3 px-6 text-left font-bold"><a href="#" class="exercise-link text-indigo-600 dark:text-indigo-400 hover:underline" data-exercise="${item.exercise}">${item.exercise}</a></td><td class="py-3 px-6 text-left">${item.duration}</td><td class="py-3 px-6 text-left">${item.sets}</td><td class="py-3 px-6 text-left">${item.rest}</td></tr>`;
+                    });
+                    return table + `</tbody></table></div>`;
+                },
+                buildWeeklyTable: (schedule) => {
+                    let table = `<div class="overflow-x-auto table-container shadow-lg rounded-lg border dark:border-gray-700"><table class="w-full min-w-max striped-table"><thead class="sticky top-0 z-10"><tr class="bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 uppercase text-sm leading-normal"><th class="py-3 px-6 text-left">Day</th><th class="py-3 px-6 text-left">Focus</th><th class="py-3 px-6 text-left">Sample Exercises</th></tr></thead><tbody class="text-gray-600 dark:text-gray-200 text-sm font-light">`;
+                    schedule.forEach(item => {
+                        const exercisesHtml = item.exercises.split(', ').map(ex => `<a href="#" class="exercise-link text-indigo-600 dark:text-indigo-400 hover:underline" data-exercise="${ex}">${ex}</a>`).join(', ');
+                        table += `<tr class="border-b border-gray-200 dark:border-gray-700"><td class="py-3 px-6 text-left font-bold">${item.day}</td><td class="py-3 px-6 text-left">${item.focus}</td><td class="py-3 px-6 text-left">${exercisesHtml}</td></tr>`;
+                    });
+                    return table + `</tbody></table></div>`;
+                },
+                buildMonthlyAccordion: (schedule) => {
+                    let accordion = `<div class="space-y-4">`;
+                    schedule.forEach(week => {
+                        accordion += `<div class="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden border dark:border-gray-700"><button class="accordion-toggle w-full text-left p-6 flex justify-between items-center"><h3 class="text-2xl font-bold">Week ${week.week}</h3><svg class="w-6 h-6 transform transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg></button><div class="accordion-content">${dynamicWorkoutGenerator.buildWeeklyTable(week.schedule)}</div></div>`;
+                    });
+                    return accordion + `</div>`;
+                }
+            };
+
+            function setupWorkoutGenerator() {
+                document.getElementById('generate-workout-btn').addEventListener('click', () => {
+                    const planType = document.getElementById('workout-duration').value;
+                    const planHtml = dynamicWorkoutGenerator.getPlanHtml(planType, userData.goal);
+                    document.getElementById('workout-plan-output').innerHTML = planHtml;
+                    
+                    document.querySelectorAll('#workout-plan-output .accordion-toggle').forEach(button => {
+                        button.addEventListener('click', () => {
+                            const content = button.nextElementSibling;
+                            const icon = button.querySelector('svg');
+                            content.classList.toggle('open'); icon.classList.toggle('rotate-180');
+                        });
+                    });
+                    document.querySelectorAll('#workout-plan-output .exercise-link').forEach(link => {
+                        link.addEventListener('click', (e) => {
+                            e.preventDefault(); showExerciseDetail(e.target.dataset.exercise);
+                        });
+                    });
+                });
+            }
+
+            function showExerciseDetail(exerciseName) {
+                const ex = exerciseDatabase[exerciseName];
+                localStorage.setItem('fitTrackView', 'exerciseDetail');
+                localStorage.setItem('fitTrackExercise', exerciseName);
+                if (!ex) {
+                    const fallbackEx = { description: `No detail available for ${exerciseName}.`, image: `https://placehold.co/600x400/3b82f6/ffffff?text=${exerciseName.replace(' ', '+')}`, wiki: `https://en.wikipedia.org/wiki/${exerciseName.replace(' ', '_')}`, tips: { loss: "Focus on form and intensity.", gain: "Focus on progressive overload.", athletic: "Focus on explosive movement." } };
+                    displayExerciseModal(fallbackEx, exerciseName);
+                } else {
+                     displayExerciseModal(ex, exerciseName);
+                }
+            }
+            
+            function displayExerciseModal(ex, name) {
+                document.getElementById('ex-detail-name').textContent = name;
+                document.getElementById('ex-detail-image').src = ex.image;
+                document.getElementById('ex-detail-image').alt = name;
+                document.getElementById('ex-detail-desc').textContent = ex.description;
+                document.getElementById('ex-detail-tip').textContent = ex.tips[userData.goal];
+                document.getElementById('ex-detail-wiki').href = ex.wiki;
+                showPage('exercise-detail-page');
+            }
+
+            document.getElementById('back-to-workout-btn').addEventListener('click', (e) => {
+                e.preventDefault(); localStorage.setItem('fitTrackView', 'main'); localStorage.removeItem('fitTrackExercise');
+                showPage('main-app'); showMainAppPage('exercises-page');
+            });
+
+            // --- Diet Plan Logic (Populated from document) ---
+            const mealDatabase = {
+                veg: {
+                    loss: {
+                        breakfast: [
+                            "Oatmeal with berries, https://www.eatingwell.com/recipe/251317/oatmeal-with-fruit-nuts/",
+                            "Greek yogurt with fruit, https://www.balancenutrition.in/recipes/recipe-details/greek-yogurt-with-fruit",
+                            "Vegetable omelette, https://healthy-indian.com/recipes/vegetable-masala-omelet/",
+                            "Avocado toast on whole wheat, https://www.eatingwell.com/recipe/8029771/avocado-toast-recipe/",
+                            "Sprouts salad, https://www.indianhealthyrecipes.com/sprouted-moong-salad-recipe/",
+                            "Moong dal chilla, https://www.cult.fit/live/recipe/moong-dal-cheela/RECIPE520",
+                            "Fruit smoothie with protein powder, https://www.eatingwell.com/gallery/7910825/high-protein-smoothie-recipes/",
+                            "Besan chilla, https://www.indianhealthyrecipes.com/cheela-recipe/",
+                            "Upma, https://fitelo.co/recipes/sooji-upma/",
+                            "Poha with peanuts, https://www.healthifyme.com/recipes/poha-with-peanuts"
+                        ],
+                        lunch: [
+                            "Lentil soup with brown rice, https://skinnyspatula.com/rice-lentil-soup/",
+                            "Quinoa salad with chickpeas, https://www.indianveggiedelight.com/quinoa-chickpea-salad/",
+                            "Mixed vegetable curry with roti, https://www.cult.fit/live/recipe/mixed-vegetable-curry/RECIPE253",
+                            "Tofu salad, https://theplantbasedschool.com/tofu-salad/",
+                            "Brown rice with rajma, https://vegbuffet.com/healthy-veg-brown-rice-pulao-weight-loss/",
+                            "Vegetable clear soup, https://www.indianhealthyrecipes.com/clear-soup/",
+                            "Paneer tikka salad, https://www.gohealthyeverafter.com/easy-paneer-tikka-salad/",
+                            "Dal fry with millet roti, https://hebbarskitchen.com/healthy-weight-loss-roti-recipe-no-atta/",
+                            "Mixed bean salad, https://www.inspiredtaste.net/46546/easy-bean-salad/",
+                            "Mushroom stroganoff, https://www.skinnytaste.com/mushroom-stroganoff/"
+                        ],
+                        dinner: [
+                            "Grilled Tofu with steamed veggies, https://www.loveandlemons.com/grilled-tofu/",
+                            "Paneer bhurji with roti, https://www.cult.fit/live/recipe/paneer-bhurji/RECIPE787",
+                            "Vegetable stir-fry, https://www.wholesomeyum.com/stir-fry-vegetables/",
+                            "Baingan bharta with millet roti, https://cookpad.com/eng/recipes/22561512",
+                            "Dal makhani (light) with brown rice, https://www.cult.fit/live/recipe/dal-makhani/RECIPE32",
+                            "Mixed vegetable pulao, https://www.natashamohan.com/pulao-recipe-for-weight-loss/",
+                            "Mushroom soup, https://beingnutritious.com/healthy-mushroom-soup/",
+                            "Lentil pasta, https://fitelo.co/recipes/red-lentil-pasta/",
+                            "Cauliflower rice, https://www.loveandlemons.com/how-to-make-cauliflower-rice/",
+                            "Spinach soup with toast, https://www.tarladalal.com/low-calorie-spinach-soup-4057r"
+                        ]
+                    },
+                    gain: {
+                        breakfast: [
+                            "Paneer paratha with curd, https://www.balcalnutrefy.com/healthy-recipes/paneer-paratha/",
+                            "Peanut butter banana smoothie, https://food.ndtv.com/health/how-to-make-peanut-butter-banana-smoothie-to-gain-healthy-weight-3883887",
+                            "Stuffed omelette, https://www.cult.fit/live/recipe/stuffed-omelette/RECIPE347",
+                            "Masala oats with vegetables, https://summeryule.com/savory-oatmeal-breakfast-huevos-rancheros-with-avocado/",
+                            "Whole milk with muesli and nuts, https://www.healthkart.com/connect/try-these-recipes-of-muesli-for-weight-gain/?srsltid=AfmBOooI2Pq5DlVjVC2hdtXy4EXZHxIeIVCYWf1_Os2z5tK8gGmSO2WU",
+                            "Aloo paratha with butter, https://www.indianhealthyrecipes.com/aloo-paratha/",
+                            "Besan chilla with paneer stuffing, https://cookpad.com/eng/recipes/14980751",
+                            "French toast, https://healthfulblondie.com/protein-french-toast/",
+                            "Cheese sandwich, https://theproteinchef.co/bodybuilding-grilled-cheese-sandwich-recipe/",
+                            "Banana shake with nuts, https://fitelo.co/recipes/banana-shake-for-weight-gain/"
+                        ],
+                        lunch: [
+                            "Chickpea curry with quinoa, https://makepurethyheart.com/chickpea-curry-with-ssamjang/",
+                            "Rajma chawal with ghee, https://fitelo.co/recipes/rajma-chawal/",
+                            "Paneer butter masala with naan, https://www.indianhealthyrecipes.com/paneer-butter-masala-restaurant-style/",
+                            "Soy chunk curry with rice, https://www.indianhealthyrecipes.com/soya-chunks-curry-meal-maker-curry/",
+                            "Full cream yogurt with fruits and nuts, https://www.eatingwell.com/recipe/260856/greek-yogurt-with-fruit-nuts/",
+                            "Kadhi pakora with rice, https://www.indianhealthyrecipes.com/kadhi-pakora-recipe/",
+                            "Mixed dal with roti, https://www.cult.fit/live/recipe/mix-dal-tadka/RECIPE138",
+                            "Paneer biryani, https://www.indianhealthyrecipes.com/paneer-biryani/",
+                            "Chana masala with bhature, https://www.indianhealthyrecipes.com/chole/",
+                            "Stuffed capsicum, https://www.tarladalal.com/baked-stuffed-capsicum-or-how-to-make-baked-stuffed-capsicum-recipe-31102r"
+                        ],
+                        dinner: [
+                            "Soy chunk stir-fry with nuts, https://www.balcalnutrefy.com/healthy-recipes/soya-chunks-stir-fry-chinese-style/",
+                            "Dal makhani with rice, https://www.vegrecipesofindia.com/dal-makhani-restaurant-style-recipe/",
+                            "Shahi paneer with roti, https://www.indianhealthyrecipes.com/shahi-paneer-recipe/",
+                            "Mixed vegetable korma, https://www.cult.fit/live/recipe/roast-veg-korma/RECIPE231",
+                            "Sweet potato chaat, https://fitelo.co/weight-loss/recipes/sweet-potato-chaat/",
+                            "Gobi manchurian with fried rice, https://www.cult.fit/live/recipe/gobi-manchurian/RECIPE721",
+                            "Paneer pulao, https://www.indianhealthyrecipes.com/paneer-pulao/",
+                            "Malai kofta, https://www.healthkart.com/connect/easy-malai-kofta-recipe-for-you-to-try/?srsltid=AfmBOoofczjpOc_iS-jj24ZK7sIw3I356_eXMccTnKiCAoeCTJHBfZps",
+                            "Mushroom masala, https://www.indianhealthyrecipes.com/mushroom-curry/",
+                            "Vegetable biryani, https://www.cult.fit/live/recipe/pressure-cooker-veg-biryani/RECIPE496"
+                        ]
+                    },
+                    athletic: {
+                        breakfast: [
+                            "Sprouts salad with paneer, https://www.indianhealthyrecipes.com/sprouted-moong-salad-recipe/",
+                            "High-protein smoothie (whey, banana, oats), https://www.muscleandstrength.com/recipes/banana-and-oats-protein-shake.html",
+                            "Scrambled paneer on toast, https://www.cult.fit/live/recipe/scrambled-paneer-sandwich-/RECIPE6",
+                            "Multi-grain toast with peanut butter, https://www.eatingwell.com/article/7891061/im-a-dietitian-and-this-is-my-go-to-breakfast/",
+                            "Greek yogurt with honey and almonds, https://liverfoundation.org/health-and-wellness/healthy-lifestyle/recipes/yogurt-with-honey-and-nuts/",
+                            "Oats with nuts and seeds, https://www.eatingbirdfood.com/blended-overnight-oats/",
+                            "Egg-free omelette (chickpea flour), https://sophiadecor.com/vegan-chickpea-omelette/",
+                            "Sattu drink, https://arogyamnutrition.com/recipes/salted-chana-sattu-drink/",
+                            "Boiled chickpeas, https://food.ndtv.com/weight-loss/how-to-consume-chickpeas-for-weight-loss-key-benefits-and-easy-recipes-4102330",
+                            "Tofu sandwich, https://kiipfit.com/tofu-sandwich/"
+                        ],
+                        lunch: [
+                            "Mixed bean curry with whole wheat roti, https://greenbowl2soul.com/indian-beans-curry/",
+                            "Quinoa bowl with avocado and black beans, https://www.eatingwell.com/recipe/260726/black-bean-quinoa-buddha-bowl/",
+                            "Tofu and vegetable skewers, https://veganheaven.org/recipe/tofu-vegetable-skewers/",
+                            "Brown rice with high-protein dal, https://www.snapcalorie.com/recipes/high_protein_dal_rice.html",
+                            "Large vegetable and chickpea salad, https://flavorquotient.com/2023/10/high-protein-chickpea-salad-weightloss-recipe/",
+                            "Soy cutlets with mint chutney, https://aahaaramonline.com/soya-cutlet-soya-granules-tikki-high-protein-low-carb/",
+                            "Buckwheat roti with dal, https://fitelo.co/recipe/kuttu-ki-puri/",
+                            "Paneer and veg fried rice, https://www.indianveggiedelight.com/paneer-fried-rice/",
+                            "Lentil and rice, https://cardamomandtea.com/36/lentils-and-rice/",
+                            "Tofu curry, https://www.eatingwell.com/easy-tofu-curry-8360882"
+                        ],
+                        dinner: [
+                            "Quinoa stir-fry with tofu, https://gymbeam.com/blog/fitness-recipe-quinoa-stir-fry-with-tofu-and-peanuts/",
+                            "High-protein paneer and veg curry, https://skinnyspatula.com/light-paneer-curry/",
+                            "Lentil pasta with vegetable sauce, https://www.loveandlemons.com/lentil-pasta/",
+                            "Black chana masala with rice, https://www.indianhealthyrecipes.com/kala-chana/",
+                            "Mushroom and pea curry, https://healthy-indian.com/recipes/vegan-mushroom-matar-peas-masala/",
+                            "Tofu tikka masala, https://www.ketoforindia.com/keto-tofu-tikka-masala/",
+                            "Sweet potato and black bean burgers, https://frommybowl.com/sweet-potato-black-bean-burgers/",
+                            "Soya chunks pulao, https://www.cult.fit/live/recipe/soya-nuggets-pulao/RECIPE453",
+                            "High-protein dal, https://cookingforpeanuts.com/easy-masoor-dal-recipe/",
+                            "Grilled paneer, https://www.natashamohan.com/3-paneer-recipes-for-weight-loss/"
+                        ]
+                    }
+                },
+                nonveg: {
+                    loss: {
+                        breakfast: [
+                            "Scrambled eggs with spinach, https://healthyrecipesblogs.com/spinach-scramble/",
+                            "Smoked salmon on whole wheat, https://kimabbagehart.com/healthy-breakfast-smoked-salmon-toast/",
+                            "Boiled eggs, https://www.indianhealthyrecipes.com/egg-salad-recipe-egg-recipes-breakfast/",
+                            "Turkey sausage, https://emilybites.com/2022/02/turkey-breakfast-sausage.html",
+                            "Chicken salad lettuce wraps, https://tastesbetterfromscratch.com/greek-yogurt-chicken-salad-lettuce-wraps/",
+                            "Egg white omelette, https://healthyrecipesblogs.com/egg-white-omelet-recipe/",
+                            "Greek yogurt, https://www.eatingwell.com/recipe/252990/homemade-plain-greek-yogurt/",
+                            "Oats with egg, https://cookpad.com/pk/recipes/11206800-oats-with-egg",
+                            "Chicken salami sandwich, https://www.yummytummyaarthi.com/chicken-salami-sandwich-recipe/",
+                            "Mushroom omelette, https://www.indianhealthyrecipes.com/mushroom-omelette-recipe/"
+                        ],
+                        lunch: [
+                            "Grilled chicken salad, https://www.eatingwell.com/recipe/8055766/grilled-chicken-salad/",
+                            "Tuna salad with mixed greens, https://feelgoodfoodie.net/recipe/healthy-tuna-salad/",
+                            "Chicken breast with broccoli, https://healthyfitnessmeals.com/broccoli-stuffed-chicken-breast/",
+                            "Fish tikka, https://flavorquotient.com/2022/04/grilled-fish-tikka/",
+                            "Lettuce-wrapped burgers (no bun), https://realsimplegood.com/bunless-burger-recipe/",
+                            "Chicken soup, https://www.modernfoodstories.com/recipes/soups/healthy-chicken-soup/",
+                            "Shrimp salad, https://healthyfitnessmeals.com/healthy-shrimp-salad/",
+                            "Grilled fish, https://fitelo.co/weight-loss/recipes/grilled-fish/",
+                            "Chicken clear soup, https://fitelo.co/weight-loss/recipes/clear-chicken-soup/",
+                            "Egg salad, https://laurenfitfoodie.com/high-protein-egg-salad-low-calorie/"
+                        ],
+                        dinner: [
+                            "Baked fish with asparagus, https://ketocakewalk.com/lemony-fish-asparagus-sheet-pan/",
+                            "Turkey meatballs with zucchini noodles, https://nutritionstarringyou.com/turkey-meatballs-with-zucchini-spaghetti/",
+                            "Grilled chicken breast with side salad, https://www.delish.com/cooking/recipe-ideas/a21097616/grilled-chicken-salad-recipe/",
+                            "Salmon steak with steamed veggies, https://www.weightlossresources.co.uk/recipes/calorie-counted/fish-shellfish-dishes/baked-salmon-with-vegetables-363183.htm",
+                            "Chicken stir-fry (light on oil), https://frugalflexitarian.com/low-calorie-chicken-stir-fry/",
+                            "Egg curry with quinoa, https://grandmarecipes.com/spiced-easter-egg-curry-recipe/",
+                            "Tandoori chicken, https://headbangerskitchen.com/easy-low-fat-tandoori-chicken/",
+                            "Chicken shashlik, https://www.fittr.com/recipe/chicken-shashlik-1176637/",
+                            "Fish curry (light), https://www.sinamontales.com/easy-fish-curry-recipe-with-drumsticks-and-raw-mango",
+                            "Prawn salad, https://weightlosswithveera.com/prawn-salad-recipe/"
+                        ]
+                    },
+                    gain: {
+                        breakfast: [
+                            "Chicken sandwich, https://www.indianhealthyrecipes.com/mayo-chicken-sandwich-recipe/",
+                            "Full omelette with cheese and toast, https://thegeriatricdietitian.com/high-calorie-omelettes/",
+                            "Sausage and eggs, https://godgiveningredients.com/high-protein-chicken-sausage-egg-white-scramble-with-spinach/",
+                            "Protein pancakes with whey, https://healthyrecipesblogs.com/protein-pancakes/",
+                            "Mutton keema with pav, https://mykitchendiaries.com/recipes/keema-pav-with-whole-wheat-pav-protein-loaded-midday-meal/",
+                            "Steak and eggs, https://www.wholesomeyum.com/steak-and-eggs/?srsltid=AfmBOors368ymBYA1Oo0oXAfcVx824iD9_X7DdnlAQTrvrQEXulhI_cE",
+                            "Peanut butter smoothie with whey, https://healthywithachanceofsprinkles.com/high-calorie-high-protein-chocolate-peanut-butter-smoothie/",
+                            "Chicken paratha, https://food.ndtv.com/recipe-chicken-parantha-955390",
+                            "Egg bhurji with roti, https://www.cult.fit/live/recipe/anda-bhurji/RECIPE449",
+                            "French toast with eggs, https://eatthegains.com/protein-french-toast/"
+                        ],
+                        lunch: [
+                            "Mutton curry with brown rice, https://fitelo.co/recipes/mutton-curry/",
+                            "Chicken biryani, https://www.myprotein.com/thezone/recipe/easy-chicken-biryani/",
+                            "Fish curry with rice, https://food.ndtv.com/food-drinks/this-no-oil-fish-curry-recipe-in-20-mins-will-be-ideal-for-your-weight-loss-diet-4042082",
+                            "Beef stir-fry with noodles, https://pupswithchopsticks.com/soy-sauce-beef-onion-fried-noodles/",
+                            "Tuna sandwich with extra tuna, https://feelgoodfoodie.net/recipe/healthy-tuna-salad/",
+                            "Chicken pasta in white sauce, https://fitelo.co/weight-loss/recipes/white-sauce-pasta/",
+                            "Lamb chops, https://www.primaverakitchen.com/garlic-herb-lamb-chops-recipe/",
+                            "Prawn fried rice, https://flavorquotient.com/2024/08/best-ever-prawn-fried-rice/",
+                            "Goan fish curry, https://healthyishandhappy.com/healthy-recipe/goan-fish-curry/",
+                            "Butter chicken, https://weightlosswithveera.com/low-calorie-butter-chicken/"
+                        ],
+                        dinner: [
+                            "Salmon with sweet potato, https://www.eatingwell.com/recipe/281181/sheet-pan-salmon-with-sweet-potatoes-broccoli/",
+                            "Chicken breast with large portion of quinoa, https://somethingnutritiousblog.com/one-pan-chicken-and-quinoa/",
+                            "Beef steak with roasted vegetables, https://thewholecook.com/steak-roasted-veggies/",
+                            "Mutton korma with roti, https://www.indianhealthyrecipes.com/mutton-korma-recipe/",
+                            "Whole roasted chicken (portion), https://allthehealthythings.com/the-best-roasted-chicken/",
+                            "Prawn curry with rice, https://www.indianhealthyrecipes.com/prawn-curry-prawn-masala/",
+                            "Butter chicken with naan, https://weightlosswithveera.com/low-calorie-butter-chicken/",
+                            "Mutton biryani, https://www.indianhealthyrecipes.com/mutton-biryani/",
+                            "Chilli chicken, https://headbangerskitchen.com/keto-chilli-chicken/",
+                            "Fish and chips, https://www.slimmingeats.com/blog/fish-and-chips-fakeaway-night"
+                        ]
+                    },
+                    athletic: {
+                        breakfast: [
+                            "Boiled eggs (4-6) with whole wheat toast, https://www.cult.fit/live/recipe/boiled-egg-sandwich/RECIPE762",
+                            "Chicken omelette, https://easyhealthyrecipes.com/chicken-omelette/",
+                            "Oats with whey protein, nuts, and milk, https://www.myprotein.co.in/blog/recipe/protein-oats-3-ways/",
+                            "Tuna on toast, https://www.healthyheartywholesome.co.uk/tuna-crunch-toast-recipe/",
+                            "High-protein cereal with milk, https://www.fittr.com/recipe/high-protein-cereals-3802674/",
+                            "Scrambled eggs with chicken sausages, https://godgiveningredients.com/high-protein-chicken-sausage-egg-white-scramble-with-spinach/",
+                            "Steak and eggs, https://www.wholesomeyum.com/steak-and-eggs/?srsltid=AfmBOopoD_N-AV0Zpb4rMQB5t_9zXmFXNfYE0Z2-VD9FAMBfojUCKvA2",
+                            "Keema pav, https://www.fittr.com/recipe/soya-keema-pav-926314/",
+                            "Egg sandwich, https://www.cult.fit/live/recipe/boiled-egg-sandwich/RECIPE762",
+                            "Protein shake, https://lifemd.com/learn/5-protein-shake-recipes-for-weight-loss"
+                        ],
+                        lunch: [
+                            "Chicken breast with quinoa and avocado, https://somethingnutritiousblog.com/one-pan-chicken-and-quinoa/",
+                            "Large bowl of chicken and vegetable soup, https://www.allrecipes.com/recipe/270021/low-carb-chicken-vegetable-soup/",
+                            "Mutton biryani (high protein), https://www.indianhealthyrecipes.com/mutton-biryani/",
+                            "Salmon with mixed greens and brown rice, https://www.eatingwell.com/recipe/7960938/salmon-rice-bowl/",
+                            "Beef and vegetable stew, https://www.allrecipes.com/recipe/15431/beef-and-vegetable-stew/",
+                            "Tuna salad with pasta, https://beatthebudget.com/recipe/healthy-tuna-pasta-salad/",
+                            "Grilled fish tacos, https://www.eatingbirdfood.com/clean-eating-grilled-fish-tacos/",
+                            "Chicken fried rice (high protein), https://nutritionistmom.com/blogs/blog/healthy-chicken-fried-rice?srsltid=AfmBOoorU-DpNhB-wbB7uBoxKRYkqIfKXDfi1cZozFjF8_oqvUWoroZe",
+                            "Lamb stew, https://www.weightlossresources.co.uk/recipes/calorie-counted/lamb-dishes/lamb-stew-317367.htm",
+                            "Egg curry with rice, https://www.cult.fit/live/recipe/egg-curry/RECIPE352"
+                        ],
+                        dinner: [
+                            "Tuna salad with mixed greens, https://downshiftology.com/recipes/tuna-salad/",
+                            "Steak with sweet potato, https://eatthegains.com/steak-and-sweet-potato-skillet/",
+                            "Grilled salmon with broccoli, https://fitia.app/calories-nutritional-information/grilled-salmon-with-broccoli-in-white-sauce-1203041/",
+                            "Chicken and rice (large portion), https://nutritionistmom.com/blogs/blog/healthy-chicken-fried-rice?srsltid=AfmBOooneTMcsBqXV4Qqi9nsMfJthh-WgQY7tHJVWjtcP7PaS_HXph9o",
+                            "Mutton stew, https://www.natashamohan.com/nutrient-dense-mutton-stew/",
+                            "High-protein fish curry, https://www.indianhealthyrecipes.com/fish-curry-recipe/",
+                            "Turkey burgers with side salad, https://skinnyfitalicious.com/meal-prep-turkey-burger-salad/",
+                            "Chicken tikka masala, https://flavorquotient.com/2022/03/homestyle-simple-chicken-tikka/",
+                            "Beef curry, https://www.kitchensanctuary.com/lighter-slow-cooked-spicy-beef-curry/",
+                            "Prawn masala, https://www.indianhealthyrecipes.com/prawn-curry-prawn-masala/"
+                        ]
+                    }
+                },
+                vegan: {
+                    loss: {
+                        breakfast: [
+                            "Oatmeal with berries and almond milk, https://www.fannetasticfood.com/almond-milk-overnight-oats-with-berries/",
+                            "Tofu scramble, https://hurrythefoodup.com/tofu-scramble/",
+                            "Avocado toast, https://gimmedelicious.com/how-to-make-the-best-avocado-toast-with-eggs/",
+                            "Fruit smoothie with plant-based protein, https://www.eatingwell.com/gallery/8037600/30-day-smoothie-plan-for-weight-loss/",
+                            "Chia seed pudding, https://www.eatingbirdfood.com/basic-chia-seed-pudding/",
+                            "Apple slices with peanut butter, https://www.sharbatlyfruit.com/en/recipes/snacks/apple-and-peanut-butter-slices",
+                            "Millet porridge, https://healthymiller.com/blogs/recipes/meal-plan-for-weight-loss-and-hormonal-balance?srsltid=AfmBOor5hYx0DdMchaLh2v4fQUr7OCpqCO85YGEdzyMJK3Gqb6wAgqE4",
+                            "Ragi dosa, https://aahaaramonline.com/ragi-dosa-nachni-dosa/",
+                            "Vegan yogurt with fruit, https://www.thevegannutritionist.co.uk/fruit-and-yogurt-breakfast-bowl",
+                            "Masala oats, https://hebbarskitchen.com/easy-homemade-veg-masala-oats-recipe/"
+                        ],
+                        lunch: [
+                            "Lentil soup with whole wheat bread, https://v3apparel.com/blogs/the-playbook/lentil-soup-with-whole-grain-bread",
+                            "Quinoa salad with chickpeas and veggies, https://www.cookwithkushi.com/healthy-quinoa-salad/",
+                            "Tofu salad sandwich, https://www.pcrm.org/good-nutrition/plant-based-diets/recipes/tofu-egg-salad-sandwich",
+                            "Mixed bean salad, https://www.inspiredtaste.net/46546/easy-bean-salad/",
+                            "Brown rice with dal, https://vegbuffet.com/healthy-veg-brown-rice-pulao-weight-loss/",
+                            "Vegetable wraps, https://www.indianhealthyrecipes.com/veg-wraps-recipe-make-vegetable-wraps/",
+                            "Cauliflower rice stir-fry, https://www.indianhealthyrecipes.com/cauliflower-stir-fry/",
+                            "Vegan sushi, https://www.cookwithmanali.com/vegan-sushi/",
+                            "Hummus with pita and veggies, https://happykitchen.rocks/pita-pockets-roasted-veggies-hummus/",
+                            "Pumpkin soup, https://www.yummytummyaarthi.com/pumpkin-soup-recipe/"
+                        ],
+                        dinner: [
+                            "Grilled Tofu with steamed veggies, https://foodtrails25.com/pan-grilled-tofu-salad/",
+                            "Vegetable stir-fry with seitan, https://pickledplum.com/seitan-vegetable-stir-fry/",
+                            "Black bean burgers (no bun) with side salad, https://www.loveandlemons.com/black-bean-burger-recipe/",
+                            "Lentil shepherd's pie, https://rainbowplantlife.com/healthy-vegan-lentil-shepherds-pie/",
+                            "Mushroom and spinach curry, https://www.sanjanafeasts.co.uk/2023/09/spinach-and-mushroom-curry/",
+                            "Zucchini noodles with avocado pesto, https://www.eatyourselfskinny.com/zucchini-noodles-with-creamy-avocado-pesto/",
+                            "Vegan chili, https://cookieandkate.com/vegetarian-chili-recipe/",
+                            "Tempeh curry, https://www.101cookbooks.com/tempeh-curry/",
+                            "Tofu and broccoli stir-fry, https://www.wellplated.com/three-pea-ginger-tofu-stir-fry/",
+                            "Lentil soup, https://cookieandkate.com/best-lentil-soup-recipe/"
+                        ]
+                    },
+                    gain: {
+                        breakfast: [
+                            "Tofu scramble with vegan sausage, https://www.diannesvegankitchen.com/the-vegan-roman-tofu-scramble/",
+                            "Peanut butter banana smoothie (large), https://www.allrecipes.com/recipe/221261/peanut-butter-banana-smoothie/",
+                            "Oatmeal with nuts, seeds, and soy milk, https://thefoodiephysician.com/oatmeal-smoothie-for-weight-loss/",
+                            "Bagel with vegan cream cheese and toppings, https://plantifullybasedblog.com/2024/07/05/high-protein-bagel-recipe-vegan/",
+                            "Avocado toast with 'just egg', https://flavorquotient.com/2025/07/avocado-toast-with-eggs-for-healthy-breakfast/",
+                            "Pancakes with maple syrup and fruit, https://www.loveandlemons.com/healthy-pancakes/",
+                            "Breakfast burrito with beans and tofu, https://www.abbeyskitchen.com/vegan-breakfast-burrito-tofu-scramble/",
+                            "Almond butter toast, https://medium.com/@healthycookingtour/how-to-make-almond-butter-toast-healthycookingtour-498645f9283f",
+                            "Vegan protein shake, https://simpleveganblog.com/vegan-protein-shake/",
+                            "Stuffed paratha (potato/gobi), https://www.vegrecipesofindia.com/aloo-gobi-paratha-recipe/"
+                        ],
+                        lunch: [
+                            "Chickpea curry with quinoa, https://indischwindisch.com/2020/11/01/chana-masala-made-easy-chickpea-curry-with-quinoa/",
+                            "Seitan stir-fry with rice, https://plantbasedrdblog.com/2021/11/homemade-seitan-stir-fry/",
+                            "Large burrito with beans, rice, and vegan cheese, https://www.vegrecipesofindia.com/burrito-recipe/",
+                            "Peanut noodles with tofu, https://www.thehealthyhomecook.com/easy-peanut-noodles-with-tofu/",
+                            "Vegan mac and cheese (cashew-based), https://www.noracooks.com/vegan-mac-and-cheese-recipe/",
+                            "Lentil bolognese with pasta, https://rainbowplantlife.com/10-ingredient-vegan-red-lentil-bolognese/",
+                            "Tofu fried rice, https://www.yummytummyaarthi.com/tofu-fried-rice-recipe/",
+                            "Beyond Meat sandwich, https://www.beyondmeat.com/en-US/recipes/beyond-steak-open-faced-sandwich",
+                            "Vegan biryani, https://www.indianhealthyrecipes.com/veg-biryani/",
+                            "Tempeh sandwich, https://hurrythefoodup.com/tempeh-sandwich/"
+                        ],
+                        dinner: [
+                            "Soy chunk stir-fry with nuts, https://www.balcalnutrefy.com/healthy-recipes/soya-chunks-stir-fry-chinese-style/",
+                            "Vegan pizza, https://minimalistbaker.com/my-favorite-vegan-pizza/",
+                            "Lentil and sweet potato curry, https://gratefulgrazer.com/red-lentil-curry/",
+                            "Beyond Meat burger with fries, https://www.beyondmeat.com/en-US/recipes/beyond-beef-loaded-fries",
+                            "Tofu tikka masala with naan, https://rainbowplantlife.com/tofu-tikka-masala/",
+                            "Large vegetable and bean stew, https://gingerhultinnutrition.com/apricot-tomato-chickpea-vegetarian-stew/",
+                            "Vegan paella, https://www.weightlossresources.co.uk/recipes/calorie-counted/veg-up/easy-veggie-paella-742771.htm",
+                            "Seitan steak, https://seitansociety.com/recipes/vegan-steak-washed-flour-seitan/",
+                            "Mushroom risotto, https://www.healthyheartywholesome.co.uk/mushroom-risotto-recipe/",
+                            "Vegan korma, https://www.indianhealthyrecipes.com/veg-kurma-recipe-vegetable-korma-recipe/"
+                        ]
+                    },
+                    athletic: {
+                        breakfast: [
+                            "High-protein smoothie (plant protein, soy milk, oats), https://nutrabay.com/magazine/protein-smoothie-recipe-7-easy-recipes",
+                            "Tofu scramble with black beans, https://hurrythefoodup.com/tofu-scramble/",
+                            "Whole wheat toast with almond butter and banana, https://thechiclife.com/2018/07/easy-almond-butter-banana-honey-toast-recipe.html",
+                            "Oats with nuts, seeds, and soy milk, https://www.natashamohan.com/oats-recipe-without-milk-for-weight-loss/",
+                            "Chia pudding with fruit and nuts, https://feelgoodfoodie.net/recipe/3-ingredient-chia-pudding/",
+                            "Vegan protein pancakes, https://elavegan.com/protein-pancakes/",
+                            "Sprouts salad with tofu, https://www.indianhealthyrecipes.com/sprouted-moong-salad-recipe/",
+                            "Sattu drink, https://timesofindia.indiatimes.com/life-style/food-news/these-2-sattu-recipes-can-help-lose-weight-faster/photostory/99235944.cms",
+                            "Boiled chickpeas, https://flavorquotient.com/2023/10/high-protein-chickpea-salad-weightloss-recipe/",
+                            "Tempeh bacon sandwich, https://www.heynutritionlady.com/tempeh-bacon-blt-sandwiches/"
+                        ],
+                        lunch: [
+                            "Quinoa bowl with avocado and black beans, https://www.eatingwell.com/recipe/260726/black-bean-quinoa-buddha-bowl/",
+                            "Tofu and vegetable skewers with peanut sauce, https://balancenutrition.in/recipes/miscellaneous/tofu-vegetable-kebabs-with-peanut-sauce",
+                            "Lentil pasta with tempeh, https://melissatraub.com/lentil-pasta-with-tempeh-and-spinach/",
+                            "Large bean and grain salad, https://thebalancednutritionist.com/high-protein-bean-salad/",
+                            "Seitan 'chicken' salad sandwich, https://cadryskitchen.com/vegan-chicken-salad/",
+                            "Vegan sushi rolls, https://sarahsveganguide.com/vegan-sushi-guide",
+                            "Buckwheat noodles with veggies and tofu, https://kitchenatics.com/recipes/vegetarian-tofu-soba-noodles-recipe/",
+                            "High-protein tofu fried rice, https://flavorquotient.com/2024/10/high-protein-tofu-fried-rice-with-mushrooms/",
+                            "Chickpea and spinach curry, https://mygoodnesskitchen.com/walk-away-chickpea-tomato-and-spinach-curry-vegan/",
+                            "Black bean pasta, https://theclevermeal.com/pasta-with-black-beans/"
+                        ],
+                        dinner: [
+                            "Quinoa stir-fry with tofu and edamame, https://moderatelymessyrd.com/tofu-edamame-power-bowl/?srsltid=AfmBOopfuTQ1QG6XBzqt9dyVaScKOKxPwxlY9jxQOLCQmVggRe1D97-G",
+                            "High-protein lentil and vegetable stew, https://nourishedbynic.com/the-ultimate-cozy-high-protein-lentil-soup/",
+                            "Tempeh stir-fry, https://minimalistbaker.com/simple-vegetable-tempeh-stir-fry/",
+                            "Black chana masala with brown rice, https://www.indianhealthyrecipes.com/kala-chana/",
+                            "Mushroom and pea curry with cashew cream, https://www.indianhealthyrecipes.com/matar-mushroom-recipe-mushroom-curry/",
+                            "Tofu and sweet potato burgers, https://avocadopesto.com/vegan-sweet-potato-tofu-burger/",
+                            "Vegan red curry with tofu, https://jessicainthekitchen.com/vegan-thai-red-curry-with-tofu/",
+                            "Seitan and vegetable stew, https://cookpad.com/eng/recipes/17156205",
+                            "Lentil and mushroom bolognese, https://carriecarvalho.com/vegetarian-lentil-and-mushroom-bolognese/",
+                            "High-protein vegan chili, https://www.glowsteady.co.uk/high-protein-vegan-chilli-recipe-plant-sourced/"
+                        ]
+                    }
+                }
+            };
+            
+            function getUniqueMeals(mealType, goal, mealCategory, count) {
+                const mealList = mealDatabase[mealType][goal][mealCategory];
+                const uniqueMeals = [];
+                const usedIndices = new Set();
+                for (let i = 0; i < count; i++) {
+                    let randomIndex; let safetyCheck = 0; 
+                    do { randomIndex = Math.floor(Math.random() * mealList.length); safetyCheck++; } while (usedIndices.has(randomIndex) && safetyCheck < mealList.length * 2);
+                    uniqueMeals.push(mealList[randomIndex]); usedIndices.add(randomIndex);
+                    if (usedIndices.size === mealList.length) usedIndices.clear();
+                }
+                return uniqueMeals;
+            }
+
+            function getDietPlan(type, duration, goal) {
+                let plan = `<h3 class="text-3xl font-extrabold text-center my-4">${duration.charAt(0).toUpperCase() + duration.slice(1)} ${type.charAt(0).toUpperCase() + type.slice(1)} Diet for ${goal.charAt(0).toUpperCase() + goal.slice(1)}</h3>`;
+                const isWeekly = duration === 'weekly';
+                const days = isWeekly ? 7 : 30;
+                const dayLabels = isWeekly ? ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'] : Array.from({ length: 30 }, (_, i) => `Day ${i + 1}`);
+                const breakfasts = getUniqueMeals(type, goal, 'breakfast', days);
+                const lunches = getUniqueMeals(type, goal, 'lunch', days);
+                const dinners = getUniqueMeals(type, goal, 'dinner', days);
+
+                plan += `<div class="overflow-x-auto table-container shadow-lg rounded-lg border dark:border-gray-700"><table class="w-full min-w-max striped-table"><thead><tr class="bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 uppercase text-sm leading-normal"><th class="py-3 px-6 text-left sticky top-0 z-10 dark:bg-gray-700 bg-gray-200">Day</th><th class="py-3 px-6 text-left sticky top-0 z-10 dark:bg-gray-700 bg-gray-200">Breakfast</th><th class="py-3 px-6 text-left sticky top-0 z-10 dark:bg-gray-700 bg-gray-200">Lunch</th><th class="py-3 px-6 text-left sticky top-0 z-10 dark:bg-gray-700 bg-gray-200">Dinner</th></tr></thead><tbody class="text-gray-600 dark:text-gray-200 text-sm font-light">`;
+
+                for (let i = 0; i < days; i++) {
+                    const day = dayLabels[i];
+                    const linkify = (mealEntry) => {
+                        if (!mealEntry) return 'N/A';
+                        // Split by the last comma to separate food name and URL
+                        const lastCommaIndex = mealEntry.lastIndexOf(',');
+                        if (lastCommaIndex !== -1) {
+                            const name = mealEntry.substring(0, lastCommaIndex).trim();
+                            const url = mealEntry.substring(lastCommaIndex + 1).trim();
+                            return `<a href="${url}" target="_blank" rel="noopener noreferrer" class="hover:text-indigo-500 dark:hover:text-indigo-300 hover:underline">${name}</a>`;
+                        }
+                        return mealEntry;
+                    };
+
+                    plan += `<tr class="border-b border-gray-200 dark:border-gray-700"><td class="py-3 px-6 text-left whitespace-nowrap font-bold">${day}</td><td class="py-3 px-6 text-left">${linkify(breakfasts[i])}</td><td class="py-3 px-6 text-left">${linkify(lunches[i])}</td><td class="py-3 px-6 text-left">${linkify(dinners[i])}</td></tr>`;
+                }
+                return plan + `</tbody></table></div>`;
+            }
+
+            function setupDietGenerator() {
+                const dietDurationSelect = document.getElementById('diet-duration');
+                const generateDietBtn = document.getElementById('generate-diet-btn');
+                dietDurationSelect.addEventListener('change', (e) => {
+                    generateDietBtn.textContent = e.target.value === 'weekly' ? 'Generate Weekly Plan' : 'Generate Monthly Plan';
+                });
+                generateDietBtn.addEventListener('click', () => {
+                    const dietType = document.getElementById('diet-type').value;
+                    const dietDuration = dietDurationSelect.value;
+                    const planHtml = getDietPlan(dietType, dietDuration, userData.goal);
+                    document.getElementById('diet-plan-output').innerHTML = planHtml;
+                });
+            }
+
+            // --- AI Chatbot Logic ---
+            async function getAiResponse(userInput) {
+                const apiKey = "AIzaSyDJgzuKNsES4e20v6vdyUxYUNy2OpTMUXw"; 
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+                const systemPrompt = `You are FitBot, a friendly and expert fitness and nutrition assistant. The current user's goal is: ${userData.goal}.`;
+                const payload = { systemInstruction: { parts: [{ text: systemPrompt }] }, contents: [{ parts: [{ text: userInput }] }] };
+
+                let response; let delay = 1000;
+                for (let i = 0; i < 3; i++) {
+                    try {
+                        response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+                        if (response.status === 429) { await new Promise(res => setTimeout(res, delay)); delay *= 2; } else if (response.ok) { break; } else { throw new Error(`API request failed`); }
+                    } catch (error) { if (i === 2) throw error; await new Promise(res => setTimeout(res, delay)); delay *= 2; }
+                }
+
+                if (!response || !response.ok) throw new Error(`API request failed`);
+                const result = await response.json();
+                if (result.candidates && result.candidates[0]?.content?.parts[0]) return result.candidates[0].content.parts[0].text;
+                return "I'm sorry, I can't provide a response right now.";
+            }
+            
+            function addChatMessage(message, sender, messageId = null) {
+                const chatWindow = document.getElementById('chat-window');
+                const messageDiv = document.createElement('div');
+                messageDiv.className = `chat-bubble max-w-xs md:max-w-md p-3 rounded-lg ${sender === 'user' ? 'bg-indigo-500 text-white self-end' : 'bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 self-start'}`;
+                messageDiv.textContent = message;
+                if(messageId){ messageDiv.id = messageId; if(message === "...") { messageDiv.classList.add('thinking-bubble'); messageDiv.innerHTML = '&nbsp;'; } }
+                const wrapperDiv = document.createElement('div');
+                wrapperDiv.className = 'flex ' + (sender === 'user' ? 'justify-end' : 'justify-start');
+                wrapperDiv.appendChild(messageDiv);
+                chatWindow.appendChild(wrapperDiv);
+                chatWindow.scrollTop = chatWindow.scrollHeight;
+            }
+
+            function setupChatbot() {
+                const chatForm = document.getElementById('chat-form');
+                const chatInput = document.getElementById('chat-input');
+                addChatMessage("Hello! I'm your AI Fitness Assistant. Ask me anything about exercises or diets.", 'bot');
+
+                chatForm.addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    const userInput = chatInput.value.trim();
+                    if (userInput === '') return;
+                    addChatMessage(userInput, 'user');
+                    chatInput.value = '';
+                    addChatMessage("...", 'bot', 'thinking-bubble');
+
+                    try {
+                        const botResponse = await getAiResponse(userInput);
+                        const thinkingBubble = document.getElementById('thinking-bubble');
+                        if (thinkingBubble) { thinkingBubble.textContent = botResponse; thinkingBubble.classList.remove('thinking-bubble'); thinkingBubble.removeAttribute('id'); }
+                    } catch (error) {
+                        const thinkingBubble = document.getElementById('thinking-bubble');
+                        if (thinkingBubble) { thinkingBubble.textContent = "Sorry, I'm having trouble connecting."; thinkingBubble.classList.remove('thinking-bubble'); thinkingBubble.removeAttribute('id'); }
+                    }
+                });
+            }
+
+            // --- Random Fact ---
+            const fitnessFacts = ["Exercise boosts brainpower.", "The human body has >600 muscles.", "Spot reduction is a myth.", "Hydration improves performance.", "Muscle burns more calories than fat."];
+            function displayRandomFact() { document.getElementById('fitness-fact').textContent = fitnessFacts[Math.floor(Math.random() * fitnessFacts.length)]; }
+
+            // --- App Bootstrapping ---
+            loadUserData();
+            const savedView = localStorage.getItem('fitTrackView');
+            if (userData.name && savedView) {
+                document.getElementById('user-name-placeholder').textContent = userData.name;
+                calculateAndDisplayBMI(userData.weight, userData.height);
+                initializeApp();
+                if (savedView === 'goal') showPage('goal-selection-section');
+                else if (savedView === 'main') { showPage('main-app'); showMainAppPage(localStorage.getItem('fitTrackMainPage') || 'exercises-page'); }
+                else if (savedView === 'exerciseDetail') { showPage('main-app'); showMainAppPage('exercises-page'); if (localStorage.getItem('fitTrackExercise')) showExerciseDetail(localStorage.getItem('fitTrackExercise')); }
+                else showPage('user-details-section');
+            } else {
+                showPage('user-details-section');
+            }
+        });
+    </script>
+</body>
+</html>
